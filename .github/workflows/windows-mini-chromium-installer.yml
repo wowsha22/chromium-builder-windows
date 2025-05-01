@@ -1,0 +1,61 @@
+name: Build Mini Chromium Installer (Windows)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-mini-windows:
+    runs-on: windows-latest
+    env:
+      BUILD_ROOT: D:\chromium    # Use the larger D: volume
+
+    steps:
+    - name: Checkout this repo
+      uses: actions/checkout@v4
+
+    - name: Install depot_tools
+      run: |
+        git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git %BUILD_ROOT%\depot_tools
+        echo "%BUILD_ROOT%\depot_tools" >> $GITHUB_PATH
+
+    - name: Fetch Chromium source (shallow)
+      shell: bash
+      run: |
+        mkdir -p /d/chromium
+        cd /d/chromium
+        fetch --nohooks --no-history chromium
+
+    - name: Sync dependencies (retry up to 3×)
+      shell: bash
+      run: |
+        cd /d/chromium/src
+        for i in {1..3}; do
+          gclient sync && break
+          echo "Retry #$i for gclient sync"
+          sleep 15
+        done
+
+    - name: Configure Mini build with GN
+      shell: bash
+      run: |
+        cd /d/chromium/src
+        gn gen out/Default --args="\
+is_debug=false \
+is_component_build=false \
+enable_nacl=false"
+
+    - name: Build Mini installer only
+      shell: bash
+      run: |
+        cd /d/chromium/src
+        autoninja -C out/Default mini_installer
+
+    - name: Upload Mini Chromium installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: mini-chromium-installer
+        path: /d/chromium/src/out/Default/mini_installer.exe
