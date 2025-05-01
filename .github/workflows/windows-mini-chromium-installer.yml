@@ -15,7 +15,6 @@ jobs:
     env:
       BUILD_ROOT: D:\chromium
       DEPOT_TOOLS_WIN_TOOLCHAIN: 0
-      PATH: D:\chromium\depot_tools;${{ PATH }}
 
     steps:
       - name: Checkout this repo
@@ -24,24 +23,27 @@ jobs:
       - name: Create build root
         shell: powershell
         run: |
-          Remove-Item -Recurse -Force $env:BUILD_ROOT -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory -Path $env:BUILD_ROOT
+          Remove-Item -Recurse -Force $Env:BUILD_ROOT -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path $Env:BUILD_ROOT
 
       - name: Clone depot_tools
         shell: powershell
         run: |
-          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git $env:BUILD_ROOT\depot_tools
+          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git $Env:BUILD_ROOT\depot_tools
 
       - name: Fetch Chromium source (shallow)
         shell: powershell
         run: |
-          cd $env:BUILD_ROOT
+          # Prepend depot_tools to PATH
+          $Env:Path = "$Env:BUILD_ROOT\depot_tools;$Env:Path"
+          cd $Env:BUILD_ROOT
           fetch --nohooks --no-history chromium
 
       - name: Sync dependencies (retry up to 3×)
         shell: powershell
         run: |
-          cd $env:BUILD_ROOT\src
+          $Env:Path = "$Env:BUILD_ROOT\depot_tools;$Env:Path"
+          cd $Env:BUILD_ROOT\src
           for ($i = 1; $i -le 3; $i++) {
             if (gclient sync) { break }
             Write-Host "Retry #$i for gclient sync"
@@ -51,17 +53,19 @@ jobs:
       - name: Configure Mini build with GN
         shell: powershell
         run: |
-          cd $env:BUILD_ROOT\src
+          $Env:Path = "$Env:BUILD_ROOT\depot_tools;$Env:Path"
+          cd $Env:BUILD_ROOT\src
           gn gen out\Default --args="is_debug=false is_component_build=false enable_nacl=false"
 
       - name: Build Mini installer only
         shell: powershell
         run: |
-          cd $env:BUILD_ROOT\src
+          $Env:Path = "$Env:BUILD_ROOT\depot_tools;$Env:Path"
+          cd $Env:BUILD_ROOT\src
           autoninja -C out\Default mini_installer
 
       - name: Upload Mini Chromium installer
         uses: actions/upload-artifact@v4
         with:
           name: mini-chromium-installer
-          path: $env:BUILD_ROOT\src\out\Default\mini_installer.exe
+          path: $Env:BUILD_ROOT\src\out\Default\mini_installer.exe
