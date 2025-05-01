@@ -2,9 +2,11 @@ name: Build Mini Chromium Installer (Windows)
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -13,7 +15,7 @@ jobs:
     env:
       BUILD_ROOT: D:\chromium
       DEPOT_TOOLS_WIN_TOOLCHAIN: 0
-      PATH: D:\chromium\depot_tools;${{ env.PATH }}
+      PATH: D:\chromium\depot_tools;${{ PATH }}
 
     steps:
       - name: Checkout this repo
